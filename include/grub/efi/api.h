@@ -89,6 +89,11 @@
     { 0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b } \
   }
 
+#define GRUB_EFI_BLOCK_IO2_GUID \
+  { 0xa77b2472, 0xe282, 0x4e9f, \
+      { 0xa2, 0x45, 0xc2, 0xc0, 0xe2, 0x7b, 0xbc, 0xc1} \
+  }
+
 #define GRUB_EFI_SERIAL_IO_GUID \
   { 0xbb25cf6f, 0xf1d4, 0x11d2, \
     { 0x9a, 0x0c, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0xfd } \
@@ -1689,25 +1694,76 @@ struct grub_efi_simple_network
 typedef struct grub_efi_simple_network grub_efi_simple_network_t;
 
 
+typedef struct grub_efi_block_io grub_efi_block_io_t;
+
+typedef grub_efi_status_t grub_efi_block_io_reset_t(
+    grub_efi_block_io_t *this,
+    grub_efi_boolean_t extended_verification);
+typedef grub_efi_status_t grub_efi_block_io_read_blocks_t(
+    grub_efi_block_io_t *this,
+    grub_efi_uint32_t media_id,
+    grub_efi_lba_t lba,
+    grub_efi_uintn_t buffer_size,
+    void *buffer);
+typedef grub_efi_status_t grub_efi_block_io_write_blocks_t(
+    grub_efi_block_io_t *this,
+    grub_efi_uint32_t media_id,
+    grub_efi_lba_t lba,
+    grub_efi_uintn_t buffer_size,
+    void *buffer);
+typedef grub_efi_status_t grub_efi_block_io_flush_blocks_t(
+    grub_efi_block_io_t *this);
+
 struct grub_efi_block_io
 {
   grub_efi_uint64_t revision;
   grub_efi_block_io_media_t *media;
-  grub_efi_status_t (*reset) (struct grub_efi_block_io *this,
-			      grub_efi_boolean_t extended_verification);
-  grub_efi_status_t (*read_blocks) (struct grub_efi_block_io *this,
-				    grub_efi_uint32_t media_id,
-				    grub_efi_lba_t lba,
-				    grub_efi_uintn_t buffer_size,
-				    void *buffer);
-  grub_efi_status_t (*write_blocks) (struct grub_efi_block_io *this,
-				     grub_efi_uint32_t media_id,
-				     grub_efi_lba_t lba,
-				     grub_efi_uintn_t buffer_size,
-				     void *buffer);
-  grub_efi_status_t (*flush_blocks) (struct grub_efi_block_io *this);
+  grub_efi_block_io_reset_t *reset;
+  grub_efi_block_io_read_blocks_t *read_blocks;
+  grub_efi_block_io_write_blocks_t *write_blocks;
+  grub_efi_block_io_flush_blocks_t *flush_blocks;
 };
-typedef struct grub_efi_block_io grub_efi_block_io_t;
+
+
+struct grub_efi_block_io2_token
+{
+  grub_efi_event_t event;
+  grub_efi_status_t transaction_status;
+};
+typedef struct grub_efi_block_io2_token grub_efi_block_io2_token_t;
+
+typedef struct grub_efi_block_io2 grub_efi_block_io2_t;
+
+typedef grub_efi_status_t grub_efi_block_io2_reset_ex_t(
+    grub_efi_block_io2_t *this,
+    grub_efi_boolean_t extended_verification);
+typedef grub_efi_status_t grub_efi_block_io2_read_blocks_ex_t(
+    grub_efi_block_io2_t *this,
+    grub_efi_uint32_t media_id,
+    grub_efi_lba_t lba,
+    grub_efi_block_io2_token_t *token,
+    grub_efi_uintn_t buffer_size,
+    void *buffer);
+typedef grub_efi_status_t grub_efi_block_io2_write_blocks_ex_t(
+    grub_efi_block_io2_t *this,
+    grub_efi_uint32_t media_id,
+    grub_efi_lba_t lba,
+    grub_efi_block_io2_token_t *token,
+    grub_efi_uintn_t buffer_size,
+    void *buffer);
+typedef grub_efi_status_t grub_efi_block_io2_flush_blocks_ex_t(
+    grub_efi_block_io2_t *this,
+    grub_efi_block_io2_token_t *token);
+
+struct grub_efi_block_io2
+{
+  grub_efi_block_io_media_t *media;
+  grub_efi_block_io2_reset_ex_t *reset_ex;
+  grub_efi_block_io2_read_blocks_ex_t *read_blocks_ex;
+  grub_efi_block_io2_write_blocks_ex_t *write_blocks_ex;
+  grub_efi_block_io2_flush_blocks_ex_t *flush_blocks_ex;
+};
+
 
 struct grub_efi_shim_lock_protocol
 {
