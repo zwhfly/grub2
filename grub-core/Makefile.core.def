@@ -809,6 +809,12 @@ module = {
 };
 
 module = {
+  name = efiramdisk;
+  efi = commands/efi/efiramdisk.c;
+  enable = efi;
+};
+
+module = {
   name = blocklist;
   common = commands/blocklist.c;
 };
