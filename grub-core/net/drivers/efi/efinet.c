@@ -146,15 +146,46 @@ get_card_packet (struct grub_net_card *dev)
 static grub_err_t
 open_card (struct grub_net_card *dev)
 {
-  grub_efi_simple_network_t *net;
+  grub_efi_simple_network_t *net = NULL;
 
   /* Try to reopen SNP exlusively to close any active MNP protocol instance
      that may compete for packet polling
    */
-  net = grub_efi_open_protocol (dev->efi_handle, &net_io_guid,
-				GRUB_EFI_OPEN_PROTOCOL_BY_EXCLUSIVE);
-  if (net)
+  //net = grub_efi_open_protocol (dev->efi_handle, &net_io_guid,
+	//			GRUB_EFI_OPEN_PROTOCOL_BY_EXCLUSIVE);
+  grub_efi_status_t status = efi_call_6 (grub_efi_system_table->boot_services->open_protocol, dev->efi_handle,
+		       &net_io_guid,
+		       &net,
+		       grub_efi_image_handle,
+		       0,
+		       GRUB_EFI_OPEN_PROTOCOL_BY_EXCLUSIVE);
+  grub_printf("open_card: open_protocol: %llu\n", (unsigned long long)status);
+
+  if (status == GRUB_EFI_SUCCESS)
     {
+        grub_printf("open_card: %d\n", (int)__LINE__);
+
+      /* Since other protocol instances are closed, close this instance.
+         This allows further exclusive opening, in chainloaded grub etc.
+       */
+      status = efi_call_4 (grub_efi_system_table->boot_services->close_protocol,
+		  dev->efi_handle, &net_io_guid,
+		  grub_efi_image_handle, NULL);
+      grub_printf("open_card: %d close_protocol: %llu\n", (int)__LINE__, (unsigned long long)status);
+
+      net = grub_efi_open_protocol (dev->efi_handle, &net_io_guid, GRUB_EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+      if (net)
+      {
+        grub_printf("open_card: %d\n", (int)__LINE__);
+        dev->efi_net = net;
+      }
+      else
+      {
+        grub_printf("open_card: %d\n", (int)__LINE__);
+        //This should not happen.
+        net = dev->efi_net;
+      }
+
       if (net->mode->state == GRUB_EFI_NETWORK_STOPPED
 	  && efi_call_1 (net->start, net) != GRUB_EFI_SUCCESS)
 	return grub_error (GRUB_ERR_NET_NO_CARD, "%s: net start failed",
@@ -192,12 +223,10 @@ open_card (struct grub_net_card *dev)
 	  efi_call_6 (net->receive_filters, net, filters, 0, 0, 0, NULL);
 	}
 
-      efi_call_4 (grub_efi_system_table->boot_services->close_protocol,
-		  dev->efi_net, &net_io_guid,
-		  grub_efi_image_handle, dev->efi_handle);
-      dev->efi_net = net;
+        grub_printf("open_card: %d\n", (int)__LINE__);
     }
 
+  grub_printf("open_card: %d\n", (int)__LINE__);
   /* If it failed we just try to run as best as we can */
   return GRUB_ERR_NONE;
 }
@@ -208,8 +237,8 @@ close_card (struct grub_net_card *dev)
   efi_call_1 (dev->efi_net->shutdown, dev->efi_net);
   efi_call_1 (dev->efi_net->stop, dev->efi_net);
   efi_call_4 (grub_efi_system_table->boot_services->close_protocol,
-	      dev->efi_net, &net_io_guid,
-	      grub_efi_image_handle, dev->efi_handle);
+	      dev->efi_handle, &net_io_guid,
+	      grub_efi_image_handle, NULL);
 }
 
 static struct grub_net_card_driver efidriver =
